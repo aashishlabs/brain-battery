@@ -3,10 +3,10 @@
 import React, { useState, useEffect, useRef } from 'react';
 
 const PRODUCTION_URL = 'https://brain-battery-three.vercel.app';
-const BATTERY_MARK = '\u25A0'; // ■
-const REFLEX_MARK = '\u203A';  // ›
-const FOCUS_MARK = '\u25CE';   // ◎
-const MEMORY_MARK = '\u25C8';  // ◈
+const BATTERY_ICON = String.fromCodePoint(0x1f50b); // 🔋
+const ZAP_ICON = String.fromCodePoint(0x26a1);     // ⚡
+const TARGET_ICON = String.fromCodePoint(0x1f3af);  // 🎯
+const BRAIN_ICON = String.fromCodePoint(0x1f9e0);   // 🧠
 
 export default function BrainBatteryDemo() {
   const [step, setStep] = useState('intro'); // intro | reflex | stroop | memory | result
@@ -166,15 +166,26 @@ export default function BrainBatteryDemo() {
   const challengeLink = `${PRODUCTION_URL}${queryString}`;
 
   const headlinePrefix = cleanName
-    ? `${BATTERY_MARK} ${cleanName}'s Brain Battery today: ${batteryScore}%`
-    : `${BATTERY_MARK} My Brain Battery today: ${batteryScore}%`;
+    ? `${BATTERY_ICON} ${cleanName}'s Brain Battery today: ${batteryScore}%`
+    : `${BATTERY_ICON} My Brain Battery today: ${batteryScore}%`;
 
   const shareText =
     `${headlinePrefix} (Mental Age: ${mentalAge})\n` +
-    `${REFLEX_MARK} Reflex: ${avgReflex}ms | ${FOCUS_MARK} Focus: ${stroopScore}/4 | ${MEMORY_MARK} Memory: ${memoryHits}/5\n` +
+    `${ZAP_ICON} Reflex: ${avgReflex}ms | ${TARGET_ICON} Focus: ${stroopScore}/4 | ${BRAIN_ICON} Memory: ${memoryHits}/5\n` +
     `Can you beat ${batteryScore}% in 45s? Try here: ${challengeLink}`;
 
   const whatsappHref = `https://wa.me/?${new URLSearchParams({ text: shareText }).toString()}`;
+
+  const handleShareClick = async (e) => {
+    if (typeof navigator !== 'undefined' && typeof navigator.share === 'function') {
+      e.preventDefault();
+      try {
+        await navigator.share({ text: shareText });
+      } catch {
+        window.open(whatsappHref, '_blank', 'noopener,noreferrer');
+      }
+    }
+  };
 
   const handleCopyLink = async () => {
     try {
@@ -197,7 +208,7 @@ export default function BrainBatteryDemo() {
 
             {hasChallenge && (
               <div className="p-3 rounded-2xl bg-amber-500/10 border border-amber-500/30 text-amber-200 text-xs font-medium">
-                {FOCUS_MARK} <span className="font-bold">{challengerName}</span> set a Brain Battery of{' '}
+                {TARGET_ICON} <span className="font-bold">{challengerName}</span> set a Brain Battery of{' '}
                 <span className="font-extrabold text-amber-400">{targetScore}%</span>. Can you beat it?
               </div>
             )}
@@ -359,6 +370,7 @@ export default function BrainBatteryDemo() {
 
             <a
               href={whatsappHref}
+              onClick={handleShareClick}
               target="_blank"
               rel="noreferrer"
               className="block w-full py-3.5 rounded-2xl bg-emerald-500 hover:bg-emerald-400 text-zinc-950 font-bold text-center text-sm transition"
