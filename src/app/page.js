@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 
-const PRODUCTION_URL = 'https://brain-battery-e5q7d9rkn-aashishlabss.vercel.app';
+const PRODUCTION_URL = 'https://brain-battery-three.vercel.app';
 
 export default function BrainBatteryDemo() {
   const [step, setStep] = useState('intro'); // intro | reflex | stroop | memory | result
@@ -16,7 +16,6 @@ export default function BrainBatteryDemo() {
   const [targetScore, setTargetScore] = useState(null);
   const [challengerName, setChallengerName] = useState('A friend');
   const [playerName, setPlayerName] = useState('');
-  const [shareUrl, setShareUrl] = useState(PRODUCTION_URL);
   const [copied, setCopied] = useState(false);
 
   const startTimeRef = useRef(0);
@@ -48,14 +47,6 @@ export default function BrainBatteryDemo() {
 
     const savedName = window.localStorage.getItem('bb_player_name');
     if (savedName) setPlayerName(savedName);
-
-    const isLocal =
-      window.location.hostname === 'localhost' ||
-      window.location.hostname === '127.0.0.1';
-    const baseUrl = isLocal
-      ? PRODUCTION_URL
-      : `${window.location.origin}${window.location.pathname}`;
-    setShareUrl(baseUrl);
   }, []);
 
   useEffect(() => {
@@ -168,7 +159,7 @@ export default function BrainBatteryDemo() {
     ? `?beat=${batteryScore}&from=${encodeURIComponent(cleanName)}`
     : `?beat=${batteryScore}`;
 
-  const challengeLink = `${shareUrl}${queryString}`;
+  const challengeLink = `${PRODUCTION_URL}${queryString}`;
 
   const headlinePrefix = cleanName
     ? `[BATTERY] ${cleanName}'s Brain Battery today: ${batteryScore}%`
@@ -180,20 +171,6 @@ export default function BrainBatteryDemo() {
     `Can you beat ${batteryScore}% in 45s? Try here: ${challengeLink}`;
 
   const whatsappHref = `https://wa.me/?${new URLSearchParams({ text: shareText }).toString()}`;
-
-  const handleWhatsAppShare = async (e) => {
-    if (typeof navigator !== 'undefined' && typeof navigator.share === 'function') {
-      e.preventDefault();
-      try {
-        await navigator.share({
-          text: shareText,
-        });
-        return;
-      } catch {
-        window.open(whatsappHref, '_blank', 'noopener,noreferrer');
-      }
-    }
-  };
 
   const handleCopyLink = async () => {
     try {
@@ -378,7 +355,6 @@ export default function BrainBatteryDemo() {
 
             <a
               href={whatsappHref}
-              onClick={handleWhatsAppShare}
               target="_blank"
               rel="noreferrer"
               className="block w-full py-3.5 rounded-2xl bg-emerald-500 hover:bg-emerald-400 text-zinc-950 font-bold text-center text-sm transition"
