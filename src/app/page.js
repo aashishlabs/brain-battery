@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 
-const PRODUCTION_URL = 'https://brain-battery-three.vercel.app';
+const PRODUCTION_URL = 'https://brain-battery-e5q7d9rkn-aashishlabss.vercel.app';
 
 export default function BrainBatteryDemo() {
   const [step, setStep] = useState('intro'); // intro | reflex | stroop | memory | result
@@ -186,9 +186,7 @@ export default function BrainBatteryDemo() {
       e.preventDefault();
       try {
         await navigator.share({
-          title: 'Brain Battery Challenge',
           text: shareText,
-          url: challengeLink,
         });
         return;
       } catch {
