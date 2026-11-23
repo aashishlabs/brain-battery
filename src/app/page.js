@@ -8,6 +8,65 @@ const ZAP_ICON = String.fromCodePoint(0x26a1);     // ⚡
 const TARGET_ICON = String.fromCodePoint(0x1f3af);  // 🎯
 const BRAIN_ICON = String.fromCodePoint(0x1f9e0);   // 🧠
 
+function clampScore(raw) {
+  if (raw === null || raw === undefined || raw === '') return null;
+  const parsed = Number(raw);
+  if (Number.isNaN(parsed)) return null;
+  return Math.min(99, Math.max(40, Math.round(parsed)));
+}
+
+function buildCognitiveReport({ batteryScore, avgReflex, stroopScore, memoryHits }) {
+  const reflexNorm = Math.max(0, Math.min(100, Math.round(100 - (avgReflex - 200) / 12)));
+  const focusNorm = Math.round((stroopScore / 4) * 100);
+  const memoryNorm = Math.round((memoryHits / 5) * 100);
+
+  const candidates = [
+    { key: 'reflex', label: 'Reflex Speed', score: reflexNorm },
+    { key: 'focus', label: 'Impulse & Focus', score: focusNorm },
+    { key: 'memory', label: 'Working Memory', score: memoryNorm },
+  ].sort((a, b) => a.score - b.score);
+
+  const weakest = candidates[0];
+
+  const peakWindow =
+    batteryScore >= 80
+      ? '9:30 AM – 12:00 PM & 4:30 PM – 6:30 PM'
+      : batteryScore >= 60
+        ? '10:00 AM – 12:00 PM (short 25m sprints)'
+        : '10:30 AM – 11:30 AM (keep afternoons light & low-distraction)';
+
+  const planByWeakness = {
+    reflex: [
+      'Days 1–4: Do 2 quick reflex warm-ups before deep work; cut late-night screen scrolling 45m before bed.',
+      'Days 5–9: Pair morning hydration and daylight exposure with a 3-minute reaction check.',
+      'Days 10–14: Lock in consistent wake/sleep timing and track whether average reaction time drops below 320ms.',
+    ],
+    focus: [
+      'Days 1–4: Run single-task 25-minute blocks with notifications silenced to reduce Stroop interference.',
+      'Days 5–9: Practice a 2-second pause before switching tabs or replying to messages.',
+      'Days 10–14: Aim for 4/4 Stroop accuracy first thing in the morning before checking chat apps.',
+    ],
+    memory: [
+      'Days 1–4: Practice visual chunking (grouping 4–5 items) during study or task planning.',
+      'Days 5–9: Recall key points from a meeting or reading block without looking at notes for 60 seconds.',
+      'Days 10–14: Combine a 5-minute memory grid check with a 15-minute afternoon walk to consolidate recall.',
+    ],
+  };
+
+  return {
+    peakWindow,
+    weakestLabel: weakest.label,
+    planSteps: planByWeakness[weakest.key] || planByWeakness.focus,
+  };
+}
+
+const DEFAULT_ROOM_MEMBERS = [
+  { name: 'Rohan', score: 91, reflex: '310ms' },
+  { name: 'Ananya', score: 84, reflex: '390ms' },
+  { name: 'Vikram', score: 74, reflex: '485ms' },
+  { name: 'Priya', score: 63, reflex: '610ms' },
+];
+
 export default function BrainBatteryDemo() {
   const [step, setStep] = useState('intro'); // intro | reflex | stroop | memory | result
   const [reflexState, setReflexState] = useState('waiting'); // waiting | ready | go | early
@@ -21,6 +80,14 @@ export default function BrainBatteryDemo() {
   const [challengerName, setChallengerName] = useState('A friend');
   const [playerName, setPlayerName] = useState('');
   const [copied, setCopied] = useState(false);
+
+  // Pro Report + Group Room state
+  const [proModalOpen, setProModalOpen] = useState(false);
+  const [proTab, setProTab] = useState('report'); // report | leaderboard
+  const [isProUnlocked, setIsProUnlocked] = useState(false);
+  const [roomCode, setRoomCode] = useState('SQUAD-2026');
+  const [roomEntries, setRoomEntries] = useState(DEFAULT_ROOM_MEMBERS);
+  const [postedToRoom, setPostedToRoom] = useState(false);
 
   const startTimeRef = useRef(0);
   const timerRef = useRef(null);
@@ -40,8 +107,8 @@ export default function BrainBatteryDemo() {
     const fromParam = params.get('from');
 
     if (beatParam !== null) {
-      const parsed = Number(beatParam);
-      if (!Number.isNaN(parsed) && parsed >= 0 && parsed <= 100) {
+      const parsed = clampScore(beatParam);
+      if (parsed !== null) {
         setTargetScore(parsed);
       }
     }
@@ -51,6 +118,9 @@ export default function BrainBatteryDemo() {
 
     const savedName = window.localStorage.getItem('bb_player_name');
     if (savedName) setPlayerName(savedName);
+
+    const savedUnlocked = window.localStorage.getItem('bb_pro_unlocked');
+    if (savedUnlocked === 'true') setIsProUnlocked(true);
   }, []);
 
   useEffect(() => {
@@ -62,6 +132,7 @@ export default function BrainBatteryDemo() {
   const handleNameChange = (e) => {
     const val = e.target.value.slice(0, 20);
     setPlayerName(val);
+    setPostedToRoom(false);
     if (typeof window !== 'undefined') {
       window.localStorage.setItem('bb_player_name', val);
     }
@@ -139,6 +210,7 @@ export default function BrainBatteryDemo() {
     setTargetTiles([]);
     setSelectedTiles([]);
     setCopied(false);
+    setPostedToRoom(false);
     setStep('reflex');
     startReflexRound();
   };
@@ -159,6 +231,8 @@ export default function BrainBatteryDemo() {
   const tiedFriend = hasChallenge && batteryScore === targetScore;
 
   const cleanName = playerName.trim();
+  const displayName = cleanName || 'You';
+
   const shareParams = new URLSearchParams({
     beat: String(batteryScore),
     reflex: `${avgReflex}ms`,
@@ -201,6 +275,34 @@ export default function BrainBatteryDemo() {
     } catch {
       setCopied(false);
     }
+  };
+
+  // --- PRO REPORT & LEADERBOARD HANDLERS ---
+  const reportData = buildCognitiveReport({
+    batteryScore,
+    avgReflex,
+    stroopScore,
+    memoryHits,
+  });
+
+  const handleUnlockPro = () => {
+    // Replace this handler with your payment link / Razorpay checkout callback
+    setIsProUnlocked(true);
+    if (typeof window !== 'undefined') {
+      window.localStorage.setItem('bb_pro_unlocked', 'true');
+    }
+  };
+
+  const handlePostScoreToRoom = () => {
+    const memberLabel = cleanName || 'You';
+    setRoomEntries((prev) => {
+      const filtered = prev.filter((item) => item.name !== memberLabel);
+      return [
+        ...filtered,
+        { name: memberLabel, score: batteryScore, reflex: `${avgReflex}ms`, isSelf: true },
+      ].sort((a, b) => b.score - a.score);
+    });
+    setPostedToRoom(true);
   };
 
   return (
@@ -403,19 +505,166 @@ export default function BrainBatteryDemo() {
               <div className="flex justify-between items-center">
                 <span className="text-xs font-bold text-amber-400">PRO REPORT + GROUP ROOMS</span>
                 <span className="text-xs font-bold bg-amber-400/10 text-amber-300 px-2 py-0.5 rounded">
-                  ₹299
+                  {isProUnlocked ? 'UNLOCKED' : '₹299'}
                 </span>
               </div>
               <p className="text-xs text-zinc-400">
                 Unlock your peak daily focus hours, 14-day cognitive recovery plan, and live Office/College Group Leaderboards.
               </p>
-              <button className="w-full py-2.5 rounded-xl bg-zinc-800 hover:bg-zinc-700 text-xs font-bold text-white">
-                Unlock Full Profile & Leaderboard
+              <button
+                type="button"
+                onClick={() => setProModalOpen(true)}
+                className="w-full py-2.5 rounded-xl bg-zinc-800 hover:bg-zinc-700 text-xs font-bold text-white transition"
+              >
+                {isProUnlocked ? 'Open Pro Report & Leaderboard' : 'Unlock Full Profile & Leaderboard'}
               </button>
             </div>
           </div>
         )}
       </div>
+
+      {/* PRO REPORT + GROUP LEADERBOARD MODAL */}
+      {proModalOpen && (
+        <div
+          className="fixed inset-0 z-50 bg-black/75 flex items-center justify-center p-4"
+          onClick={() => setProModalOpen(false)}
+        >
+          <div
+            className="w-full max-w-sm bg-zinc-900 border border-zinc-800 rounded-3xl p-5 space-y-4 shadow-2xl max-h-[88vh] overflow-y-auto"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-[11px] font-bold uppercase tracking-wider text-amber-400">
+                  Brain Battery Pro
+                </p>
+                <h2 className="text-lg font-extrabold text-white">
+                  {displayName} • {batteryScore}%
+                </h2>
+              </div>
+              <button
+                type="button"
+                onClick={() => setProModalOpen(false)}
+                className="px-2.5 py-1 rounded-lg bg-zinc-800 hover:bg-zinc-700 text-xs text-zinc-300"
+              >
+                Close
+              </button>
+            </div>
+
+            <div className="grid grid-cols-2 gap-2 bg-zinc-950 p-1 rounded-xl border border-zinc-800">
+              <button
+                type="button"
+                onClick={() => setProTab('report')}
+                className={`py-2 rounded-lg text-xs font-bold transition ${proTab === 'report'
+                  ? 'bg-emerald-500 text-zinc-950'
+                  : 'text-zinc-400 hover:text-white'
+                  }`}
+              >
+                Focus & 14-Day Plan
+              </button>
+              <button
+                type="button"
+                onClick={() => setProTab('leaderboard')}
+                className={`py-2 rounded-lg text-xs font-bold transition ${proTab === 'leaderboard'
+                  ? 'bg-emerald-500 text-zinc-950'
+                  : 'text-zinc-400 hover:text-white'
+                  }`}
+              >
+                Group Leaderboard
+              </button>
+            </div>
+
+            {!isProUnlocked ? (
+              <div className="p-4 rounded-2xl bg-zinc-950 border border-amber-500/30 space-y-3">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-bold text-white">One-Time Pass</span>
+                  <span className="text-sm font-black text-amber-400">₹299</span>
+                </div>
+                <p className="text-xs text-zinc-400 leading-relaxed">
+                  Includes peak daily focus hours for your {batteryScore}% score, a tailored 14-day {reportData.weakestLabel.toLowerCase()} recovery plan, and group room rankings.
+                </p>
+                <button
+                  type="button"
+                  onClick={handleUnlockPro}
+                  className="w-full py-3 rounded-xl bg-amber-400 hover:bg-amber-300 text-zinc-950 font-extrabold text-xs transition"
+                >
+                  Unlock ₹299 Report & Rooms (Demo Unlock)
+                </button>
+              </div>
+            ) : proTab === 'report' ? (
+              <div className="space-y-3">
+                <div className="p-3.5 rounded-2xl bg-zinc-950 border border-zinc-800 space-y-1">
+                  <span className="text-[11px] font-bold uppercase text-emerald-400">
+                    Peak Daily Focus Window
+                  </span>
+                  <p className="text-xs font-semibold text-white">{reportData.peakWindow}</p>
+                </div>
+
+                <div className="p-3.5 rounded-2xl bg-zinc-950 border border-zinc-800 space-y-2">
+                  <div className="flex items-center justify-between">
+                    <span className="text-[11px] font-bold uppercase text-amber-400">
+                      14-Day Recovery Plan
+                    </span>
+                    <span className="text-[11px] text-zinc-400">
+                      Focus: {reportData.weakestLabel}
+                    </span>
+                  </div>
+                  <ul className="space-y-2 text-xs text-zinc-300">
+                    {reportData.planSteps.map((line, i) => (
+                      <li key={i} className="leading-relaxed">
+                        • {line}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    value={roomCode}
+                    onChange={(e) => setRoomCode(e.target.value.toUpperCase().slice(0, 16))}
+                    placeholder="Room code"
+                    className="flex-1 px-3 py-2 rounded-xl bg-zinc-950 border border-zinc-800 text-xs font-bold text-white"
+                  />
+                  <button
+                    type="button"
+                    onClick={handlePostScoreToRoom}
+                    className="px-3 py-2 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-zinc-950 text-xs font-bold transition"
+                  >
+                    {postedToRoom ? 'Updated' : 'Post Score'}
+                  </button>
+                </div>
+
+                <div className="p-3 rounded-2xl bg-zinc-950 border border-zinc-800 space-y-2">
+                  <div className="flex justify-between text-[11px] text-zinc-400 font-semibold">
+                    <span>ROOM: {roomCode || 'SQUAD-2026'}</span>
+                    <span>SCORE</span>
+                  </div>
+                  {roomEntries.map((entry, idx) => (
+                    <div
+                      key={`${entry.name}-${idx}`}
+                      className={`flex items-center justify-between py-1.5 px-2.5 rounded-xl text-xs ${entry.isSelf
+                        ? 'bg-emerald-500/15 border border-emerald-500/30 text-emerald-300 font-bold'
+                        : 'bg-zinc-900 text-zinc-200'
+                        }`}
+                    >
+                      <span>
+                        #{idx + 1} {entry.name}{' '}
+                        <span className="text-[11px] text-zinc-500 font-normal">
+                          ({entry.reflex})
+                        </span>
+                      </span>
+                      <span className="font-extrabold">{entry.score}%</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
