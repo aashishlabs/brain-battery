@@ -13,6 +13,7 @@ export default function BrainBatteryDemo() {
   const [selectedTiles, setSelectedTiles] = useState([]);
   const [targetScore, setTargetScore] = useState(null);
   const [challengerName, setChallengerName] = useState('A friend');
+  const [playerName, setPlayerName] = useState('');
   const [shareUrl, setShareUrl] = useState('');
   const [copied, setCopied] = useState(false);
 
@@ -26,7 +27,7 @@ export default function BrainBatteryDemo() {
     { word: 'YELLOW', ink: 'RED', options: ['YELLOW', 'RED', 'BLUE'] },
   ];
 
-  // Read incoming challenge score from URL (?beat=84&from=Rohan)
+  // Read incoming challenge params (?beat=84&from=Rohan) & saved player name
   useEffect(() => {
     if (typeof window === 'undefined') return;
     const params = new URLSearchParams(window.location.search);
@@ -42,15 +43,26 @@ export default function BrainBatteryDemo() {
     if (fromParam && fromParam.trim()) {
       setChallengerName(fromParam.trim().slice(0, 24));
     }
+
+    const savedName = window.localStorage.getItem('bb_player_name');
+    if (savedName) setPlayerName(savedName);
+
     setShareUrl(`${window.location.origin}${window.location.pathname}`);
   }, []);
 
-  // Clean up pending timers on unmount
   useEffect(() => {
     return () => {
       if (timerRef.current) clearTimeout(timerRef.current);
     };
   }, []);
+
+  const handleNameChange = (e) => {
+    const val = e.target.value.slice(0, 20);
+    setPlayerName(val);
+    if (typeof window !== 'undefined') {
+      window.localStorage.setItem('bb_player_name', val);
+    }
+  };
 
   // --- ROUND 1: REFLEX ---
   const startReflexRound = () => {
@@ -139,17 +151,24 @@ export default function BrainBatteryDemo() {
   );
   const mentalAge = Math.max(18, Math.round(52 - batteryScore * 0.32));
 
-  // Challenge comparison status
   const hasChallenge = targetScore !== null;
   const beatFriend = hasChallenge && batteryScore > targetScore;
   const tiedFriend = hasChallenge && batteryScore === targetScore;
 
-  const challengeLink = shareUrl
-    ? `${shareUrl}?beat=${batteryScore}`
+  // Build clean query string (?beat=86 or ?beat=86&from=Rohan)
+  const cleanName = playerName.trim();
+  const queryString = cleanName
+    ? `?beat=${batteryScore}&from=${encodeURIComponent(cleanName)}`
     : `?beat=${batteryScore}`;
 
+  const challengeLink = shareUrl ? `${shareUrl}${queryString}` : queryString;
+
+  const headlinePrefix = cleanName
+    ? `🔋 ${cleanName}'s Brain Battery today: ${batteryScore}%`
+    : `🔋 My Brain Battery today: ${batteryScore}%`;
+
   const shareText =
-    `🔋 My Brain Battery today: ${batteryScore}% (Mental Age: ${mentalAge})\n` +
+    `${headlinePrefix} (Mental Age: ${mentalAge})\n` +
     `⚡ Reflex: ${avgReflex}ms | 🎯 Focus: ${stroopScore}/4 | 🧠 Memory: ${memoryHits}/5\n` +
     `Can you beat ${batteryScore}% in 45s? Try here: ${challengeLink}`;
 
@@ -300,7 +319,9 @@ export default function BrainBatteryDemo() {
             )}
 
             <div className="p-5 rounded-2xl bg-gradient-to-br from-emerald-500/20 to-zinc-950 border border-emerald-500/30 text-center space-y-2">
-              <p className="text-xs text-emerald-400 font-semibold">TODAY'S BRAIN BATTERY</p>
+              <p className="text-xs text-emerald-400 font-semibold">
+                {cleanName ? `${cleanName.toUpperCase()}'S BRAIN BATTERY` : "TODAY'S BRAIN BATTERY"}
+              </p>
               <div className="text-5xl font-black text-white">{batteryScore}%</div>
               <p className="text-sm text-zinc-300">
                 Estimated Mental Age:{' '}
@@ -322,6 +343,17 @@ export default function BrainBatteryDemo() {
               </div>
             </div>
 
+            {/* Optional Name Input for Personalized Challenge Link */}
+            <div>
+              <input
+                type="text"
+                value={playerName}
+                onChange={handleNameChange}
+                placeholder="Add your name to challenge link (optional)"
+                className="w-full px-3.5 py-2.5 rounded-xl bg-zinc-950 border border-zinc-800 focus:border-emerald-500 focus:outline-none text-xs text-white placeholder-zinc-500"
+              />
+            </div>
+
             <a
               href={`https://wa.me/?text=${encodeURIComponent(shareText)}`}
               target="_blank"
@@ -334,9 +366,9 @@ export default function BrainBatteryDemo() {
             <div className="flex gap-2">
               <button
                 onClick={handleCopyLink}
-                className="flex-1 py-2.5 rounded-xl bg-zinc-800 hover:bg-zinc-700 text-xs font-semibold text-zinc-200 transition"
+                className="flex-1 py-2.5 rounded-xl bg-zinc-800 hover:bg-zinc-700 text-xs font-semibold text-zinc-200 transition truncate px-2"
               >
-                {copied ? '✓ Link Copied' : `Copy ?beat=${batteryScore} Link`}
+                {copied ? '✓ Link Copied' : `Copy ${queryString}`}
               </button>
               <button
                 onClick={resetGame}
