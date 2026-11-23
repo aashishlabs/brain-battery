@@ -1,34 +1,41 @@
 import { ImageResponse } from 'next/og';
 
 export const runtime = 'edge';
-export const alt = 'Brain Battery™ — 45-Second Cognitive & Reflex Challenge';
+
+export const alt = 'Brain Battery Cognitive Challenge';
 export const size = {
     width: 1200,
     height: 630,
 };
 export const contentType = 'image/png';
 
-export default async function OpenGraphImage({ searchParams }) {
-    const resolvedParams = await searchParams;
-    const rawBeat = resolvedParams?.beat;
-    const rawFrom = resolvedParams?.from;
+function clampScore(raw) {
+    if (raw === null || raw === '') return 86;
+    const parsed = Number(raw);
+    if (Number.isNaN(parsed)) return 86;
+    return Math.min(99, Math.max(40, Math.round(parsed)));
+}
 
-    const parsedScore = Number(rawBeat);
-    const hasScore =
-        rawBeat !== undefined &&
-        rawBeat !== '' &&
-        !Number.isNaN(parsedScore) &&
-        parsedScore >= 0 &&
-        parsedScore <= 100;
+export default async function Image(request) {
+    const { searchParams } = new URL(request.url);
 
-    const score = hasScore ? Math.round(parsedScore) : null;
-    const challenger =
-        typeof rawFrom === 'string' && rawFrom.trim()
-            ? rawFrom.trim().slice(0, 24)
-            : null;
+    const hasBeat = searchParams.get('beat') !== null;
+    const score = clampScore(searchParams.get('beat'));
+    const mentalAge = Math.max(18, Math.round(52 - score * 0.32));
 
-    const mentalAge =
-        score !== null ? Math.max(18, Math.round(52 - score * 0.32)) : null;
+    const rawFrom = (searchParams.get('from') || '').trim().slice(0, 24);
+    const reflex = (searchParams.get('reflex') || '480ms').slice(0, 12);
+    const focus = (searchParams.get('focus') || '3/4').slice(0, 10);
+    const memory = (searchParams.get('memory') || '4/5').slice(0, 10);
+
+    const titleLabel = rawFrom
+        ? `${rawFrom.toUpperCase()}'S BRAIN BATTERY`
+        : hasBeat
+            ? "CHALLENGER'S BRAIN BATTERY"
+            : 'BRAIN BATTERY BENCHMARK';
+
+    const barFillPercent = Math.min(100, Math.max(12, score));
+    const accentColor = score >= 80 ? '#10b981' : score >= 60 ? '#f59e0b' : '#f43f5e';
 
     return new ImageResponse(
         (
@@ -39,19 +46,21 @@ export default async function OpenGraphImage({ searchParams }) {
                     display: 'flex',
                     flexDirection: 'column',
                     justifyContent: 'space-between',
-                    padding: '56px 64px',
-                    background:
-                        'linear-gradient(135deg, #09090b 0%, #111827 55%, #064e3b 100%)',
+                    padding: '54px 64px',
+                    backgroundColor: '#09090b',
+                    backgroundImage:
+                        'radial-gradient(circle at 85% 15%, rgba(16, 185, 129, 0.22), transparent 45%), radial-gradient(circle at 15% 85%, rgba(16, 185, 129, 0.10), transparent 40%)',
                     color: '#ffffff',
                     fontFamily: 'sans-serif',
                 }}
             >
-                {/* Top Badge */}
+                {/* Top Row: Brand Pill & 45s Tag */}
                 <div
                     style={{
                         display: 'flex',
                         alignItems: 'center',
                         justifyContent: 'space-between',
+                        width: '100%',
                     }}
                 >
                     <div
@@ -59,168 +68,210 @@ export default async function OpenGraphImage({ searchParams }) {
                             display: 'flex',
                             alignItems: 'center',
                             gap: '12px',
-                            padding: '10px 22px',
+                            padding: '10px 20px',
                             borderRadius: '999px',
-                            backgroundColor: 'rgba(16, 185, 129, 0.16)',
-                            border: '1px solid rgba(52, 211, 153, 0.4)',
+                            backgroundColor: 'rgba(16, 185, 129, 0.14)',
+                            border: '1px solid rgba(16, 185, 129, 0.35)',
                             color: '#34d399',
                             fontSize: '22px',
                             fontWeight: 700,
+                            letterSpacing: '0.06em',
                         }}
                     >
-                        <span>45-SECOND COGNITIVE CHECK</span>
+                        <span>BRAIN BATTERY</span>
                     </div>
 
-                    <div
-                        style={{
-                            fontSize: '26px',
-                            fontWeight: 800,
-                            color: '#a1a1aa',
-                            letterSpacing: '-0.02em',
-                        }}
-                    >
-                        Brain Battery™
-                    </div>
-                </div>
-
-                {/* Center Scorecard / Hook */}
-                {score !== null ? (
                     <div
                         style={{
                             display: 'flex',
                             alignItems: 'center',
-                            justifyContent: 'space-between',
-                            gap: '40px',
+                            padding: '10px 20px',
+                            borderRadius: '999px',
+                            backgroundColor: '#18181b',
+                            border: '1px solid #27272a',
+                            color: '#a1a1aa',
+                            fontSize: '22px',
+                            fontWeight: 600,
                         }}
                     >
-                        <div
-                            style={{
-                                display: 'flex',
-                                flexDirection: 'column',
-                                gap: '16px',
-                                maxWidth: '700px',
-                            }}
-                        >
-                            <div
-                                style={{
-                                    fontSize: '28px',
-                                    fontWeight: 700,
-                                    color: '#fbbf24',
-                                }}
-                            >
-                                {challenger
-                                    ? `${challenger.toUpperCase()} SET A CHALLENGE`
-                                    : 'SCORE CHALLENGE SET'}
-                            </div>
-
-                            <div
-                                style={{
-                                    fontSize: '58px',
-                                    fontWeight: 900,
-                                    lineHeight: 1.08,
-                                    letterSpacing: '-0.03em',
-                                }}
-                            >
-                                Can you beat {score}% in 45 seconds?
-                            </div>
-
-                            <div
-                                style={{
-                                    fontSize: '26px',
-                                    color: '#d4d4d8',
-                                }}
-                            >
-                                Estimated Mental Age: {mentalAge} yrs • Reflex, Focus & Memory
-                            </div>
-                        </div>
-
-                        <div
-                            style={{
-                                display: 'flex',
-                                flexDirection: 'column',
-                                alignItems: 'center',
-                                justifyContent: 'center',
-                                width: '290px',
-                                height: '290px',
-                                borderRadius: '36px',
-                                backgroundColor: 'rgba(9, 9, 11, 0.72)',
-                                border: '2px solid rgba(52, 211, 153, 0.45)',
-                            }}
-                        >
-                            <div
-                                style={{
-                                    fontSize: '20px',
-                                    fontWeight: 700,
-                                    color: '#34d399',
-                                    letterSpacing: '0.06em',
-                                }}
-                            >
-                                BATTERY
-                            </div>
-                            <div
-                                style={{
-                                    fontSize: '96px',
-                                    fontWeight: 900,
-                                    lineHeight: 1,
-                                    color: '#ffffff',
-                                    marginTop: '8px',
-                                }}
-                            >
-                                {score}%
-                            </div>
-                        </div>
+                        <span>45-SEC COGNITIVE TEST</span>
                     </div>
-                ) : (
-                    <div
-                        style={{
-                            display: 'flex',
-                            flexDirection: 'column',
-                            gap: '20px',
-                            maxWidth: '880px',
-                        }}
-                    >
-                        <div
-                            style={{
-                                fontSize: '66px',
-                                fontWeight: 900,
-                                lineHeight: 1.08,
-                                letterSpacing: '-0.03em',
-                            }}
-                        >
-                            How sharp is your brain right now?
-                        </div>
-                        <div
-                            style={{
-                                fontSize: '30px',
-                                color: '#d4d4d8',
-                            }}
-                        >
-                            Test reflex speed, impulse control, and working memory. Check your Mental Age & challenge friends.
-                        </div>
-                    </div>
-                )}
+                </div>
 
-                {/* Footer */}
+                {/* Middle Row: Big Score + Mental Age + Battery Bar */}
                 <div
                     style={{
                         display: 'flex',
                         alignItems: 'center',
                         justifyContent: 'space-between',
-                        borderTop: '1px solid rgba(255, 255, 255, 0.12)',
-                        paddingTop: '24px',
-                        fontSize: '22px',
-                        color: '#a1a1aa',
+                        gap: '48px',
+                        marginTop: '12px',
                     }}
                 >
-                    <span>No signup • Instant browser play</span>
-                    <span style={{ color: '#34d399', fontWeight: 700 }}>
-                        Tap link to play →
-                    </span>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                        <div
+                            style={{
+                                fontSize: '22px',
+                                fontWeight: 700,
+                                color: '#34d399',
+                                letterSpacing: '0.08em',
+                            }}
+                        >
+                            {titleLabel}
+                        </div>
+
+                        <div style={{ display: 'flex', alignItems: 'baseline', gap: '28px' }}>
+                            <div
+                                style={{
+                                    fontSize: '128px',
+                                    fontWeight: 900,
+                                    lineHeight: 1,
+                                    color: '#ffffff',
+                                    letterSpacing: '-0.04em',
+                                }}
+                            >
+                                {score}%
+                            </div>
+
+                            <div
+                                style={{
+                                    display: 'flex',
+                                    flexDirection: 'column',
+                                    padding: '14px 22px',
+                                    borderRadius: '20px',
+                                    backgroundColor: '#18181b',
+                                    border: '1px solid #27272a',
+                                }}
+                            >
+                                <span style={{ fontSize: '16px', color: '#a1a1aa', fontWeight: 600 }}>
+                                    MENTAL AGE
+                                </span>
+                                <span style={{ fontSize: '36px', color: '#34d399', fontWeight: 800 }}>
+                                    {mentalAge} yrs
+                                </span>
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* Visual Battery Meter */}
+                    <div
+                        style={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '10px',
+                        }}
+                    >
+                        <div
+                            style={{
+                                width: '260px',
+                                height: '116px',
+                                borderRadius: '24px',
+                                border: '4px solid #3f3f46',
+                                backgroundColor: '#18181b',
+                                padding: '10px',
+                                display: 'flex',
+                                alignItems: 'center',
+                            }}
+                        >
+                            <div
+                                style={{
+                                    width: `${barFillPercent}%`,
+                                    height: '100%',
+                                    borderRadius: '16px',
+                                    backgroundColor: accentColor,
+                                }}
+                            />
+                        </div>
+                        <div
+                            style={{
+                                width: '18px',
+                                height: '46px',
+                                borderTopRightRadius: '10px',
+                                borderBottomRightRadius: '10px',
+                                backgroundColor: '#3f3f46',
+                            }}
+                        />
+                    </div>
+                </div>
+
+                {/* Bottom Row: 3 Metric Badges + Challenge CTA */}
+                <div
+                    style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'space-between',
+                        gap: '20px',
+                        borderTop: '1px solid #27272a',
+                        paddingTop: '28px',
+                    }}
+                >
+                    <div style={{ display: 'flex', gap: '16px' }}>
+                        <div
+                            style={{
+                                display: 'flex',
+                                flexDirection: 'column',
+                                padding: '12px 22px',
+                                borderRadius: '16px',
+                                backgroundColor: '#18181b',
+                                border: '1px solid #27272a',
+                            }}
+                        >
+                            <span style={{ fontSize: '15px', color: '#a1a1aa' }}>REFLEX</span>
+                            <span style={{ fontSize: '26px', fontWeight: 800, color: '#ffffff' }}>
+                                {reflex}
+                            </span>
+                        </div>
+
+                        <div
+                            style={{
+                                display: 'flex',
+                                flexDirection: 'column',
+                                padding: '12px 22px',
+                                borderRadius: '16px',
+                                backgroundColor: '#18181b',
+                                border: '1px solid #27272a',
+                            }}
+                        >
+                            <span style={{ fontSize: '15px', color: '#a1a1aa' }}>FOCUS</span>
+                            <span style={{ fontSize: '26px', fontWeight: 800, color: '#ffffff' }}>
+                                {focus}
+                            </span>
+                        </div>
+
+                        <div
+                            style={{
+                                display: 'flex',
+                                flexDirection: 'column',
+                                padding: '12px 22px',
+                                borderRadius: '16px',
+                                backgroundColor: '#18181b',
+                                border: '1px solid #27272a',
+                            }}
+                        >
+                            <span style={{ fontSize: '15px', color: '#a1a1aa' }}>MEMORY</span>
+                            <span style={{ fontSize: '26px', fontWeight: 800, color: '#ffffff' }}>
+                                {memory}
+                            </span>
+                        </div>
+                    </div>
+
+                    <div
+                        style={{
+                            display: 'flex',
+                            flexDirection: 'column',
+                            alignItems: 'flex-end',
+                        }}
+                    >
+                        <span style={{ fontSize: '24px', fontWeight: 800, color: '#34d399' }}>
+                            Can you beat {score}%?
+                        </span>
+                        <span style={{ fontSize: '18px', color: '#a1a1aa' }}>
+                            brain-battery-three.vercel.app
+                        </span>
+                    </div>
                 </div>
             </div>
         ),
-        {
-            ...size,
-        }
+        { ...size }
     );
 }
