@@ -159,10 +159,16 @@ export default function BrainBatteryDemo() {
   const tiedFriend = hasChallenge && batteryScore === targetScore;
 
   const cleanName = playerName.trim();
-  const queryString = cleanName
-    ? `?beat=${batteryScore}&from=${encodeURIComponent(cleanName)}`
-    : `?beat=${batteryScore}`;
-
+  const shareParams = new URLSearchParams({
+    beat: String(batteryScore),
+    reflex: `${avgReflex}ms`,
+    focus: `${stroopScore}/4`,
+    memory: `${memoryHits}/5`,
+  });
+  if (cleanName) {
+    shareParams.set('from', cleanName);
+  }
+  const queryString = `?${shareParams.toString()}`;
   const challengeLink = `${PRODUCTION_URL}${queryString}`;
 
   const headlinePrefix = cleanName
@@ -234,10 +240,10 @@ export default function BrainBatteryDemo() {
             <div
               onClick={handleReflexTap}
               className={`h-64 rounded-2xl flex flex-col items-center justify-center cursor-pointer select-none transition ${reflexState === 'go'
-                  ? 'bg-emerald-500 text-zinc-950'
-                  : reflexState === 'early'
-                    ? 'bg-amber-500 text-zinc-950'
-                    : 'bg-rose-600 text-white'
+                ? 'bg-emerald-500 text-zinc-950'
+                : reflexState === 'early'
+                  ? 'bg-amber-500 text-zinc-950'
+                  : 'bg-rose-600 text-white'
                 }`}
             >
               <span className="text-2xl font-black">
@@ -301,10 +307,10 @@ export default function BrainBatteryDemo() {
                     key={idx}
                     onClick={() => toggleTile(idx)}
                     className={`rounded-xl transition ${isLit
-                        ? 'bg-emerald-400 shadow-lg shadow-emerald-500/40'
-                        : isPicked
-                          ? 'bg-sky-500'
-                          : 'bg-zinc-800'
+                      ? 'bg-emerald-400 shadow-lg shadow-emerald-500/40'
+                      : isPicked
+                        ? 'bg-sky-500'
+                        : 'bg-zinc-800'
                       }`}
                   />
                 );
@@ -318,10 +324,10 @@ export default function BrainBatteryDemo() {
             {hasChallenge && (
               <div
                 className={`p-3 rounded-2xl border text-center text-xs font-bold ${beatFriend
-                    ? 'bg-emerald-500/15 border-emerald-500/40 text-emerald-300'
-                    : tiedFriend
-                      ? 'bg-sky-500/15 border-sky-500/40 text-sky-300'
-                      : 'bg-rose-500/15 border-rose-500/40 text-rose-300'
+                  ? 'bg-emerald-500/15 border-emerald-500/40 text-emerald-300'
+                  : tiedFriend
+                    ? 'bg-sky-500/15 border-sky-500/40 text-sky-300'
+                    : 'bg-rose-500/15 border-rose-500/40 text-rose-300'
                   }`}
               >
                 {beatFriend &&
@@ -383,7 +389,7 @@ export default function BrainBatteryDemo() {
                 onClick={handleCopyLink}
                 className="flex-1 py-2.5 rounded-xl bg-zinc-800 hover:bg-zinc-700 text-xs font-semibold text-zinc-200 transition truncate px-2"
               >
-                {copied ? 'Link Copied' : `Copy ${queryString}`}
+                {copied ? 'Link Copied' : `Copy ?beat=${batteryScore}`}
               </button>
               <button
                 onClick={resetGame}
