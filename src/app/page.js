@@ -3,10 +3,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 
 const PRODUCTION_URL = 'https://brain-battery-three.vercel.app';
-const BATTERY_ICON = String.fromCodePoint(0x1f50b);
-const ZAP_ICON = String.fromCodePoint(0x26a1);
-const TARGET_ICON = String.fromCodePoint(0x1f3af);
-const BRAIN_ICON = String.fromCodePoint(0x1f9e0);
 
 export default function BrainBatteryDemo() {
   const [step, setStep] = useState('intro'); // intro | reflex | stroop | memory | result
@@ -175,15 +171,31 @@ export default function BrainBatteryDemo() {
   const challengeLink = `${shareUrl}${queryString}`;
 
   const headlinePrefix = cleanName
-    ? `${BATTERY_ICON} ${cleanName}'s Brain Battery today: ${batteryScore}%`
-    : `${BATTERY_ICON} My Brain Battery today: ${batteryScore}%`;
+    ? `[BATTERY] ${cleanName}'s Brain Battery today: ${batteryScore}%`
+    : `[BATTERY] My Brain Battery today: ${batteryScore}%`;
 
   const shareText =
     `${headlinePrefix} (Mental Age: ${mentalAge})\n` +
-    `${ZAP_ICON} Reflex: ${avgReflex}ms | ${TARGET_ICON} Focus: ${stroopScore}/4 | ${BRAIN_ICON} Memory: ${memoryHits}/5\n` +
+    `Reflex: ${avgReflex}ms | Focus: ${stroopScore}/4 | Memory: ${memoryHits}/5\n` +
     `Can you beat ${batteryScore}% in 45s? Try here: ${challengeLink}`;
 
   const whatsappHref = `https://wa.me/?${new URLSearchParams({ text: shareText }).toString()}`;
+
+  const handleWhatsAppShare = async (e) => {
+    if (typeof navigator !== 'undefined' && typeof navigator.share === 'function') {
+      e.preventDefault();
+      try {
+        await navigator.share({
+          title: 'Brain Battery Challenge',
+          text: shareText,
+          url: challengeLink,
+        });
+        return;
+      } catch {
+        window.open(whatsappHref, '_blank', 'noopener,noreferrer');
+      }
+    }
+  };
 
   const handleCopyLink = async () => {
     try {
@@ -206,7 +218,7 @@ export default function BrainBatteryDemo() {
 
             {hasChallenge && (
               <div className="p-3 rounded-2xl bg-amber-500/10 border border-amber-500/30 text-amber-200 text-xs font-medium">
-                {TARGET_ICON} <span className="font-bold">{challengerName}</span> set a Brain Battery of{' '}
+                <span className="font-bold">{challengerName}</span> set a Brain Battery of{' '}
                 <span className="font-extrabold text-amber-400">{targetScore}%</span>. Can you beat it?
               </div>
             )}
@@ -232,10 +244,10 @@ export default function BrainBatteryDemo() {
             <div
               onClick={handleReflexTap}
               className={`h-64 rounded-2xl flex flex-col items-center justify-center cursor-pointer select-none transition ${reflexState === 'go'
-                ? 'bg-emerald-500 text-zinc-950'
-                : reflexState === 'early'
-                  ? 'bg-amber-500 text-zinc-950'
-                  : 'bg-rose-600 text-white'
+                  ? 'bg-emerald-500 text-zinc-950'
+                  : reflexState === 'early'
+                    ? 'bg-amber-500 text-zinc-950'
+                    : 'bg-rose-600 text-white'
                 }`}
             >
               <span className="text-2xl font-black">
@@ -299,10 +311,10 @@ export default function BrainBatteryDemo() {
                     key={idx}
                     onClick={() => toggleTile(idx)}
                     className={`rounded-xl transition ${isLit
-                      ? 'bg-emerald-400 shadow-lg shadow-emerald-500/40'
-                      : isPicked
-                        ? 'bg-sky-500'
-                        : 'bg-zinc-800'
+                        ? 'bg-emerald-400 shadow-lg shadow-emerald-500/40'
+                        : isPicked
+                          ? 'bg-sky-500'
+                          : 'bg-zinc-800'
                       }`}
                   />
                 );
@@ -316,10 +328,10 @@ export default function BrainBatteryDemo() {
             {hasChallenge && (
               <div
                 className={`p-3 rounded-2xl border text-center text-xs font-bold ${beatFriend
-                  ? 'bg-emerald-500/15 border-emerald-500/40 text-emerald-300'
-                  : tiedFriend
-                    ? 'bg-sky-500/15 border-sky-500/40 text-sky-300'
-                    : 'bg-rose-500/15 border-rose-500/40 text-rose-300'
+                    ? 'bg-emerald-500/15 border-emerald-500/40 text-emerald-300'
+                    : tiedFriend
+                      ? 'bg-sky-500/15 border-sky-500/40 text-sky-300'
+                      : 'bg-rose-500/15 border-rose-500/40 text-rose-300'
                   }`}
               >
                 {beatFriend &&
@@ -368,6 +380,7 @@ export default function BrainBatteryDemo() {
 
             <a
               href={whatsappHref}
+              onClick={handleWhatsAppShare}
               target="_blank"
               rel="noreferrer"
               className="block w-full py-3.5 rounded-2xl bg-emerald-500 hover:bg-emerald-400 text-zinc-950 font-bold text-center text-sm transition"
