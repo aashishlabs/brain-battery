@@ -2,6 +2,12 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 
+const PRODUCTION_URL = 'https://brain-battery-three.vercel.app';
+const BATTERY_ICON = String.fromCodePoint(0x1f50b);
+const ZAP_ICON = String.fromCodePoint(0x26a1);
+const TARGET_ICON = String.fromCodePoint(0x1f3af);
+const BRAIN_ICON = String.fromCodePoint(0x1f9e0);
+
 export default function BrainBatteryDemo() {
   const [step, setStep] = useState('intro'); // intro | reflex | stroop | memory | result
   const [reflexState, setReflexState] = useState('waiting'); // waiting | ready | go | early
@@ -14,7 +20,7 @@ export default function BrainBatteryDemo() {
   const [targetScore, setTargetScore] = useState(null);
   const [challengerName, setChallengerName] = useState('A friend');
   const [playerName, setPlayerName] = useState('');
-  const [shareUrl, setShareUrl] = useState('');
+  const [shareUrl, setShareUrl] = useState(PRODUCTION_URL);
   const [copied, setCopied] = useState(false);
 
   const startTimeRef = useRef(0);
@@ -47,7 +53,13 @@ export default function BrainBatteryDemo() {
     const savedName = window.localStorage.getItem('bb_player_name');
     if (savedName) setPlayerName(savedName);
 
-    setShareUrl(`${window.location.origin}${window.location.pathname}`);
+    const isLocal =
+      window.location.hostname === 'localhost' ||
+      window.location.hostname === '127.0.0.1';
+    const baseUrl = isLocal
+      ? PRODUCTION_URL
+      : `${window.location.origin}${window.location.pathname}`;
+    setShareUrl(baseUrl);
   }, []);
 
   useEffect(() => {
@@ -155,22 +167,23 @@ export default function BrainBatteryDemo() {
   const beatFriend = hasChallenge && batteryScore > targetScore;
   const tiedFriend = hasChallenge && batteryScore === targetScore;
 
-  // Build clean query string (?beat=86 or ?beat=86&from=Rohan)
   const cleanName = playerName.trim();
   const queryString = cleanName
     ? `?beat=${batteryScore}&from=${encodeURIComponent(cleanName)}`
     : `?beat=${batteryScore}`;
 
-  const challengeLink = shareUrl ? `${shareUrl}${queryString}` : queryString;
+  const challengeLink = `${shareUrl}${queryString}`;
 
   const headlinePrefix = cleanName
-    ? `🔋 ${cleanName}'s Brain Battery today: ${batteryScore}%`
-    : `🔋 My Brain Battery today: ${batteryScore}%`;
+    ? `${BATTERY_ICON} ${cleanName}'s Brain Battery today: ${batteryScore}%`
+    : `${BATTERY_ICON} My Brain Battery today: ${batteryScore}%`;
 
   const shareText =
     `${headlinePrefix} (Mental Age: ${mentalAge})\n` +
-    `⚡ Reflex: ${avgReflex}ms | 🎯 Focus: ${stroopScore}/4 | 🧠 Memory: ${memoryHits}/5\n` +
+    `${ZAP_ICON} Reflex: ${avgReflex}ms | ${TARGET_ICON} Focus: ${stroopScore}/4 | ${BRAIN_ICON} Memory: ${memoryHits}/5\n` +
     `Can you beat ${batteryScore}% in 45s? Try here: ${challengeLink}`;
+
+  const whatsappHref = `https://wa.me/?${new URLSearchParams({ text: shareText }).toString()}`;
 
   const handleCopyLink = async () => {
     try {
@@ -193,7 +206,7 @@ export default function BrainBatteryDemo() {
 
             {hasChallenge && (
               <div className="p-3 rounded-2xl bg-amber-500/10 border border-amber-500/30 text-amber-200 text-xs font-medium">
-                🎯 <span className="font-bold">{challengerName}</span> set a Brain Battery of{' '}
+                {TARGET_ICON} <span className="font-bold">{challengerName}</span> set a Brain Battery of{' '}
                 <span className="font-extrabold text-amber-400">{targetScore}%</span>. Can you beat it?
               </div>
             )}
@@ -219,10 +232,10 @@ export default function BrainBatteryDemo() {
             <div
               onClick={handleReflexTap}
               className={`h-64 rounded-2xl flex flex-col items-center justify-center cursor-pointer select-none transition ${reflexState === 'go'
-                  ? 'bg-emerald-500 text-zinc-950'
-                  : reflexState === 'early'
-                    ? 'bg-amber-500 text-zinc-950'
-                    : 'bg-rose-600 text-white'
+                ? 'bg-emerald-500 text-zinc-950'
+                : reflexState === 'early'
+                  ? 'bg-amber-500 text-zinc-950'
+                  : 'bg-rose-600 text-white'
                 }`}
             >
               <span className="text-2xl font-black">
@@ -286,10 +299,10 @@ export default function BrainBatteryDemo() {
                     key={idx}
                     onClick={() => toggleTile(idx)}
                     className={`rounded-xl transition ${isLit
-                        ? 'bg-emerald-400 shadow-lg shadow-emerald-500/40'
-                        : isPicked
-                          ? 'bg-sky-500'
-                          : 'bg-zinc-800'
+                      ? 'bg-emerald-400 shadow-lg shadow-emerald-500/40'
+                      : isPicked
+                        ? 'bg-sky-500'
+                        : 'bg-zinc-800'
                       }`}
                   />
                 );
@@ -303,18 +316,18 @@ export default function BrainBatteryDemo() {
             {hasChallenge && (
               <div
                 className={`p-3 rounded-2xl border text-center text-xs font-bold ${beatFriend
-                    ? 'bg-emerald-500/15 border-emerald-500/40 text-emerald-300'
-                    : tiedFriend
-                      ? 'bg-sky-500/15 border-sky-500/40 text-sky-300'
-                      : 'bg-rose-500/15 border-rose-500/40 text-rose-300'
+                  ? 'bg-emerald-500/15 border-emerald-500/40 text-emerald-300'
+                  : tiedFriend
+                    ? 'bg-sky-500/15 border-sky-500/40 text-sky-300'
+                    : 'bg-rose-500/15 border-rose-500/40 text-rose-300'
                   }`}
               >
                 {beatFriend &&
-                  `🏆 You beat ${challengerName}'s ${targetScore}% by +${batteryScore - targetScore}%!`}
-                {tiedFriend && `🤝 Tied with ${challengerName} at ${targetScore}%!`}
+                  `You beat ${challengerName}'s ${targetScore}% by +${batteryScore - targetScore}%!`}
+                {tiedFriend && `Tied with ${challengerName} at ${targetScore}%!`}
                 {!beatFriend &&
                   !tiedFriend &&
-                  `😅 ${challengerName} still leads (${targetScore}% vs your ${batteryScore}%).`}
+                  `${challengerName} still leads (${targetScore}% vs your ${batteryScore}%).`}
               </div>
             )}
 
@@ -343,7 +356,6 @@ export default function BrainBatteryDemo() {
               </div>
             </div>
 
-            {/* Optional Name Input for Personalized Challenge Link */}
             <div>
               <input
                 type="text"
@@ -355,7 +367,7 @@ export default function BrainBatteryDemo() {
             </div>
 
             <a
-              href={`https://wa.me/?text=${encodeURIComponent(shareText)}`}
+              href={whatsappHref}
               target="_blank"
               rel="noreferrer"
               className="block w-full py-3.5 rounded-2xl bg-emerald-500 hover:bg-emerald-400 text-zinc-950 font-bold text-center text-sm transition"
@@ -368,7 +380,7 @@ export default function BrainBatteryDemo() {
                 onClick={handleCopyLink}
                 className="flex-1 py-2.5 rounded-xl bg-zinc-800 hover:bg-zinc-700 text-xs font-semibold text-zinc-200 transition truncate px-2"
               >
-                {copied ? '✓ Link Copied' : `Copy ${queryString}`}
+                {copied ? 'Link Copied' : `Copy ${queryString}`}
               </button>
               <button
                 onClick={resetGame}
