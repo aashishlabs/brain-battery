@@ -8,6 +8,104 @@ const ZAP_ICON = String.fromCodePoint(0x26a1);     // ⚡
 const TARGET_ICON = String.fromCodePoint(0x1f3af);  // 🎯
 const BRAIN_ICON = String.fromCodePoint(0x1f9e0);   // 🧠
 
+function clampScore(raw) {
+  if (raw === null || raw === undefined || raw === '') return null;
+  const parsed = Number(raw);
+  if (Number.isNaN(parsed)) return null;
+  return Math.min(99, Math.max(40, Math.round(parsed)));
+}
+
+export async function generateMetadata({ searchParams }) {
+  const resolvedParams = await searchParams;
+  const beatScore = clampScore(resolvedParams?.beat);
+  const rawFrom = typeof resolvedParams?.from === 'string'
+    ? resolvedParams.from.trim().slice(0, 24)
+    : '';
+  const reflex = typeof resolvedParams?.reflex === 'string' && resolvedParams.reflex.trim()
+    ? resolvedParams.reflex.trim().slice(0, 12)
+    : '480ms';
+  const focus = typeof resolvedParams?.focus === 'string' && resolvedParams.focus.trim()
+    ? resolvedParams.focus.trim().slice(0, 10)
+    : '3/4';
+  const memory = typeof resolvedParams?.memory === 'string' && resolvedParams.memory.trim()
+    ? resolvedParams.memory.trim().slice(0, 10)
+    : '4/5';
+
+  const params = new URLSearchParams();
+  if (beatScore !== null) params.set('beat', String(beatScore));
+  if (rawFrom) params.set('from', rawFrom);
+  params.set('reflex', reflex);
+  params.set('focus', focus);
+  params.set('memory', memory);
+
+  const queryString = `?${params.toString()}`;
+  const pageUrl = `${PRODUCTION_URL}${queryString}`;
+  const ogImageUrl = `${PRODUCTION_URL}/opengraph-image${queryString}`;
+
+  if (beatScore !== null) {
+    const mentalAge = Math.max(18, Math.round(52 - beatScore * 0.32));
+    const who = rawFrom || 'A friend';
+    const title = `${who} scored ${beatScore}% on Brain Battery (Mental Age: ${mentalAge})`;
+    const description = `Reflex: ${reflex} | Focus: ${focus} | Memory: ${memory}. Can you beat ${beatScore}% in 45s?`;
+
+    return {
+      title,
+      description,
+      openGraph: {
+        title,
+        description,
+        url: pageUrl,
+        siteName: 'Brain Battery',
+        type: 'website',
+        images: [
+          {
+            url: ogImageUrl,
+            width: 1200,
+            height: 630,
+            alt: title,
+          },
+        ],
+      },
+      twitter: {
+        card: 'summary_large_image',
+        title,
+        description,
+        images: [ogImageUrl],
+      },
+    };
+  }
+
+  const defaultTitle = 'Brain Battery - 45-Second Cognitive Check';
+  const defaultDescription =
+    'Test your reflex speed, impulse control, and working memory. See your Mental Age and challenge friends.';
+
+  return {
+    title: defaultTitle,
+    description: defaultDescription,
+    openGraph: {
+      title: defaultTitle,
+      description: defaultDescription,
+      url: PRODUCTION_URL,
+      siteName: 'Brain Battery',
+      type: 'website',
+      images: [
+        {
+          url: `${PRODUCTION_URL}/opengraph-image`,
+          width: 1200,
+          height: 630,
+          alt: defaultTitle,
+        },
+      ],
+    },
+    twitter: {
+      card: 'summary_large_image',
+      title: defaultTitle,
+      description: defaultDescription,
+      images: [`${PRODUCTION_URL}/opengraph-image`],
+    },
+  };
+}
+
 export default function BrainBatteryDemo() {
   const [step, setStep] = useState('intro'); // intro | reflex | stroop | memory | result
   const [reflexState, setReflexState] = useState('waiting'); // waiting | ready | go | early
@@ -40,8 +138,8 @@ export default function BrainBatteryDemo() {
     const fromParam = params.get('from');
 
     if (beatParam !== null) {
-      const parsed = Number(beatParam);
-      if (!Number.isNaN(parsed) && parsed >= 0 && parsed <= 100) {
+      const parsed = clampScore(beatParam);
+      if (parsed !== null) {
         setTargetScore(parsed);
       }
     }
