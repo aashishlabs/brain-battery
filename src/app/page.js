@@ -1,12 +1,21 @@
 'use client';
 
 import React, { useState, useEffect, useRef } from 'react';
+import { sendGAEvent } from '@next/third-parties/google';
 
-const PRODUCTION_URL = 'https://brain-battery-three.vercel.app';
+const PRODUCTION_URL = 'https://brainbattery.vercel.app';
 const BATTERY_ICON = String.fromCodePoint(0x1f50b); // 🔋
 const ZAP_ICON = String.fromCodePoint(0x26a1);     // ⚡
 const TARGET_ICON = String.fromCodePoint(0x1f3af);  // 🎯
 const BRAIN_ICON = String.fromCodePoint(0x1f9e0);   // 🧠
+
+function trackEvent(eventName, params = {}) {
+  try {
+    sendGAEvent('event', eventName, params);
+  } catch {
+    // Ignore analytics errors so gameplay is never interrupted
+  }
+}
 
 function clampScore(raw) {
   if (raw === null || raw === undefined || raw === '') return null;
@@ -91,6 +100,7 @@ export default function BrainBatteryDemo() {
 
   const startTimeRef = useRef(0);
   const timerRef = useRef(null);
+  const completionTrackedRef = useRef(false);
 
   const stroopRounds = [
     { word: 'RED', ink: 'BLUE', options: ['RED', 'BLUE', 'GREEN'] },
@@ -203,6 +213,7 @@ export default function BrainBatteryDemo() {
 
   const resetGame = () => {
     if (timerRef.current) clearTimeout(timerRef.current);
+    completionTrackedRef.current = false;
     setReflexTimes([]);
     setReflexState('waiting');
     setStroopIndex(0);
@@ -213,6 +224,11 @@ export default function BrainBatteryDemo() {
     setPostedToRoom(false);
     setStep('reflex');
     startReflexRound();
+
+    trackEvent('game_start', {
+      is_challenge: targetScore !== null,
+      target_score: targetScore ?? 0,
+    });
   };
 
   // --- SCORING ---
@@ -229,6 +245,21 @@ export default function BrainBatteryDemo() {
   const hasChallenge = targetScore !== null;
   const beatFriend = hasChallenge && batteryScore > targetScore;
   const tiedFriend = hasChallenge && batteryScore === targetScore;
+
+  // Track completion once per playthrough when reaching the result screen
+  useEffect(() => {
+    if (step === 'result' && !completionTrackedRef.current) {
+      completionTrackedRef.current = true;
+      trackEvent('game_complete', {
+        battery_score: batteryScore,
+        mental_age: mentalAge,
+        avg_reflex_ms: avgReflex,
+        stroop_score: stroopScore,
+        memory_hits: memoryHits,
+        beat_friend: Boolean(beatFriend),
+      });
+    }
+  }, [step, batteryScore, mentalAge, avgReflex, stroopScore, memoryHits, beatFriend]);
 
   const cleanName = playerName.trim();
   const displayName = cleanName || 'You';
@@ -257,6 +288,11 @@ export default function BrainBatteryDemo() {
   const whatsappHref = `https://wa.me/?${new URLSearchParams({ text: shareText }).toString()}`;
 
   const handleShareClick = async (e) => {
+    trackEvent('whatsapp_share', {
+      battery_score: batteryScore,
+      has_player_name: Boolean(cleanName),
+    });
+
     if (typeof navigator !== 'undefined' && typeof navigator.share === 'function') {
       e.preventDefault();
       try {
