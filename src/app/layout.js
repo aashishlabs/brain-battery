@@ -2,7 +2,7 @@ import './globals.css';
 import { Analytics } from '@vercel/analytics/next';
 
 export const metadata = {
-  metadataBase: new URL('https://brain-battery-three.vercel.app'),
+  metadataBase: new URL('https://brainbattery.vercel.app'),
   title: 'Brain Battery™ — 45-Second Cognitive & Reflex Challenge',
   description:
     'Test your reflex speed, impulse control, and working memory in 45 seconds. Check your Mental Age and challenge friends on WhatsApp.',
